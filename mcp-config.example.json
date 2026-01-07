@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "rhoai-cluster-monitor": {
+      "command": "uv",
+      "args": [
+        "--directory",
+        "/path/to/your/rhoai-cluster-monitor-mcp",
+        "run",
+        "python",
+        "main.py"
+      ],
+      "env": {
+        "HIVE_KUBECONFIG": "/path/to/your/.kube/hive.yaml",
+        "HIVE_CONTEXT": "your-hive-cluster-context"
+      }
+    }
+  }
+}
