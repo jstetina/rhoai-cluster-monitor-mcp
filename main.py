@@ -48,7 +48,7 @@ Examples:
         help="Path to kubeconfig file",
         required=False,
         dest="kubeconfig",
-        default="/home/jstetina/.kube/hive.yaml"
+        default="/root/.kube/hive.yaml"
     )
     parser.add_argument(
         "--context",
