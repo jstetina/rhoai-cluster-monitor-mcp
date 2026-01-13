@@ -50,7 +50,10 @@ class HiveClusterClient:
             )
             return result.get("items", [])
         except ApiException as e:
-            # Silently handle errors - likely permission issues
+            # Log the error to stderr so we can see what's happening
+            import sys
+            sys.stderr.write(f"ERROR getting clusterclaims: {type(e).__name__}: {str(e)}\n")
+            sys.stderr.flush()
             return []
     
     def get_clusterdeployments(self, namespace: str) -> List[Dict[str, Any]]:
@@ -72,7 +75,9 @@ class HiveClusterClient:
             )
             return result.get("items", [])
         except ApiException as e:
-            # Silently handle errors - likely permission issues
+            # Log the error to stderr so we can see what's happening
+            sys.stderr.write(f"ERROR getting clusters: {type(e).__name__}: {str(e)}\n")
+            sys.stderr.flush()
             return []
     
     def get_all_clusterdeployments(self) -> List[Dict[str, Any]]:
@@ -111,7 +116,9 @@ class HiveClusterClient:
                 result = self.core_v1.list_namespace()
             return [ns.metadata.name for ns in result.items]
         except ApiException as e:
-            # Silently handle errors - likely permission issues
+            # Log the error to stderr so we can see what's happening
+            sys.stderr.write(f"ERROR getting clusters: {type(e).__name__}: {str(e)}\n")
+            sys.stderr.flush()
             return []
     
     def get_clusterpool(self, namespace: str, pool_name: str) -> Optional[Dict[str, Any]]:
@@ -157,6 +164,8 @@ class HiveClusterClient:
             )
             return result.get("items", [])
         except ApiException as e:
-            # Silently handle errors - likely permission issues
+            # Log the error to stderr so we can see what's happening
+            sys.stderr.write(f"ERROR getting clusters: {type(e).__name__}: {str(e)}\n")
+            sys.stderr.flush()
             return []
 

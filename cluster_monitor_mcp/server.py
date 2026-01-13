@@ -1,13 +1,24 @@
 """MCP Server with cluster monitoring tools."""
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from cluster_monitor_mcp.k8s.client import HiveClusterClient
 from cluster_monitor_mcp import descriptions
 from typing import Optional, List, Dict, Any
 import json
+import os
 
-# Create MCP server
-mcp = FastMCP('rhoai-cluster-monitor')
+# Disable DNS rebinding protection for Docker container networking
+transport_security = TransportSecuritySettings(
+    enable_dns_rebinding_protection=False
+)
+
+# Create MCP server with security settings
+mcp = FastMCP('rhoai-cluster-monitor', transport_security=transport_security)
+
+# Configure uvicorn to bind to 0.0.0.0 for container networking
+os.environ.setdefault('UVICORN_HOST', '0.0.0.0')
+os.environ.setdefault('UVICORN_PORT', '8000')
 
 # Global client instance
 _hive_client: Optional[HiveClusterClient] = None

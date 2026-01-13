@@ -22,26 +22,11 @@ Examples:
     )
     parser.add_argument(
         "--transport",
-        help="Transport type (stdio or sse)",
+        help="Transport type (stdio or http)",
         required=False,
         dest="transport",
         default="stdio",
-        choices=["stdio", "sse"]
-    )
-    parser.add_argument(
-        "--host",
-        help="Host to bind to (for sse transport)",
-        required=False,
-        dest="host",
-        default="127.0.0.1"
-    )
-    parser.add_argument(
-        "--port",
-        help="Port to bind to (for sse transport)",
-        required=False,
-        dest="port",
-        type=int,
-        default=8000
+        choices=["stdio", "http"]
     )
     parser.add_argument(
         "--kubeconfig",
@@ -71,29 +56,41 @@ Examples:
     sys.stderr.write(f"Kubeconfig: {args.kubeconfig}\n")
     sys.stderr.write(f"Context: {args.context}\n")
     sys.stderr.write(f"Transport: {args.transport}\n")
-    
-    if args.transport == "sse":
-        sys.stderr.write(f"Server running at http://{args.host}:{args.port}/sse\n")
-        sys.stderr.write(f"\nAvailable endpoints:\n")
-        sys.stderr.write(f"  - SSE: http://{args.host}:{args.port}/sse\n")
-        sys.stderr.write(f"  - Messages: http://{args.host}:{args.port}/messages\n")
-        sys.stderr.write("\n")
+    sys.stderr.write("\n")
     
     # Set environment variables for the client
     os.environ["HIVE_KUBECONFIG"] = args.kubeconfig
     os.environ["HIVE_CONTEXT"] = args.context
     
+    # Debug: Log critical environment variables
+    sys.stderr.write(f"\n=== MCP Server Environment Debug ===\n")
+    sys.stderr.write(f"Critical environment variables:\n")
+    sys.stderr.write(f"  AWS_PROFILE: {os.environ.get('AWS_PROFILE', 'NOT SET')}\n")
+    sys.stderr.write(f"  HOME: {os.environ.get('HOME', 'NOT SET')}\n")
+    sys.stderr.write(f"  HIVE_KUBECONFIG: {os.environ.get('HIVE_KUBECONFIG', 'NOT SET')}\n")
+    sys.stderr.write(f"  HIVE_CONTEXT: {os.environ.get('HIVE_CONTEXT', 'NOT SET')}\n")
+    sys.stderr.write(f"====================================\n\n")
+    sys.stderr.flush()
+    
     # Run the MCP server
     try:
-        if args.transport == "sse":
-            mcp.run(transport="sse", host=args.host, port=args.port)
-        else:
+        if args.transport == "stdio":
             mcp.run(transport="stdio")
+        else:
+            # For HTTP transport, get the ASGI app and run with uvicorn directly
+            import uvicorn
+            app = mcp.streamable_http_app()
+            sys.stderr.write(f"Starting HTTP server on 0.0.0.0:8000\n")
+            sys.stderr.flush()
+            # Allow any host header for container networking
+            uvicorn.run(app, host="0.0.0.0", port=8000, server_header=False, forwarded_allow_ips="*")
     except KeyboardInterrupt:
         sys.stderr.write("\n\nShutting down server...\n")
         sys.exit(0)
     except Exception as e:
         sys.stderr.write(f"\n\nError running server: {e}\n")
+        import traceback
+        sys.stderr.write(traceback.format_exc())
         sys.exit(1)
 
 
