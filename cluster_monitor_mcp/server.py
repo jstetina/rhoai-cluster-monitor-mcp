@@ -484,6 +484,33 @@ def get_cluster_count_by_state() -> Dict[str, Any]:
     }
 
 
+@mcp.tool(description=descriptions.GET_CLUSTER_OWNERS)
+def get_cluster_owners() -> Dict[str, Any]:
+    """Returns a list of all unique cluster owners with their cluster counts."""
+    client = get_hive_client()
+    
+    # Get all cluster claims
+    clusterclaims = client.get_clusterclaims(namespace="rhoai")
+    
+    # Count clusters per owner
+    owner_counts: Dict[str, int] = {}
+    for claim in clusterclaims:
+        owner = claim.get("metadata", {}).get("labels", {}).get("owner", "")
+        if owner:
+            owner_counts[owner] = owner_counts.get(owner, 0) + 1
+    
+    # Sort by count descending, then by name
+    sorted_owners = sorted(
+        [{"name": name, "cluster_count": count} for name, count in owner_counts.items()],
+        key=lambda x: (-x["cluster_count"], x["name"].lower())
+    )
+    
+    return {
+        "total_owners": len(sorted_owners),
+        "owners": sorted_owners
+    }
+
+
 @mcp.tool(description=descriptions.TEST_HIVE_CONNECTION)
 def test_hive_connection() -> Dict[str, Any]:
     """Returns structured connection test result."""
