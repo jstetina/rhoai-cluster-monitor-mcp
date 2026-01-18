@@ -31,6 +31,43 @@ def get_hive_client() -> HiveClusterClient:
     return _hive_client
 
 
+def get_all_cluster_data(client: HiveClusterClient) -> tuple:
+    """
+    Fetch all cluster data in minimal API calls.
+    Falls back to per-namespace calls if cluster-wide access is not available.
+    
+    Returns:
+        Tuple of (clusterclaims, deployments_by_namespace, ibm_clusters)
+    """
+    clusterclaims = client.get_clusterclaims(namespace="rhoai")
+    
+    # Try cluster-wide fetch first (fast path)
+    all_deployments = client.get_all_clusterdeployments()
+    
+    # Build lookup map by namespace
+    deployments_by_namespace: Dict[str, Dict[str, Any]] = {}
+    
+    if all_deployments:
+        # Cluster-wide access worked - build map from results
+        for dep in all_deployments:
+            ns = dep.get("metadata", {}).get("namespace", "")
+            if ns:
+                deployments_by_namespace[ns] = dep
+    else:
+        # Fall back to per-namespace calls (slow but works without cluster-wide perms)
+        for claim in clusterclaims:
+            cluster_namespace = claim.get("spec", {}).get("namespace", "")
+            if cluster_namespace and cluster_namespace not in deployments_by_namespace:
+                deps = client.get_clusterdeployments(namespace=cluster_namespace)
+                if deps:
+                    deployments_by_namespace[cluster_namespace] = deps[0]
+    
+    # IBM clusters are directly in rhoai namespace
+    ibm_clusters = client.get_clusterdeployments(namespace="rhoai")
+    
+    return clusterclaims, deployments_by_namespace, ibm_clusters
+
+
 def extract_cluster_info(clusterclaim: Dict[str, Any], clusterdeployment: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Extract relevant information from clusterclaim and clusterdeployment objects.
@@ -218,12 +255,7 @@ def list_all_clusters(
 ) -> Dict[str, Any]:
     """Returns a structured response with cluster data."""
     client = get_hive_client()
-    
-    # Get all cluster claims from rhoai namespace
-    clusterclaims = client.get_clusterclaims(namespace="rhoai")
-    
-    # Get IBM clusters (clusterdeployments in rhoai namespace)
-    ibm_clusters = client.get_clusterdeployments(namespace="rhoai")
+    clusterclaims, deployments_by_namespace, ibm_clusters = get_all_cluster_data(client)
     
     all_clusters = []
     
@@ -231,9 +263,8 @@ def list_all_clusters(
     for claim in clusterclaims:
         cluster_namespace = claim.get("spec", {}).get("namespace", "")
         if cluster_namespace:
-            deployments = client.get_clusterdeployments(namespace=cluster_namespace)
-            if deployments:
-                deployment = deployments[0]  # There should be only one per namespace
+            deployment = deployments_by_namespace.get(cluster_namespace)
+            if deployment:
                 cluster_info = extract_cluster_info(claim, deployment)
                 all_clusters.append(cluster_info)
             else:
@@ -344,10 +375,7 @@ def get_cluster_details(cluster_name: str) -> Dict[str, Any]:
 def get_cluster_count_by_platform() -> Dict[str, Any]:
     """Returns structured platform statistics."""
     client = get_hive_client()
-    
-    # Get all clusters
-    clusterclaims = client.get_clusterclaims(namespace="rhoai")
-    ibm_clusters = client.get_clusterdeployments(namespace="rhoai")
+    clusterclaims, deployments_by_namespace, ibm_clusters = get_all_cluster_data(client)
     
     platform_stats: Dict[str, Dict[str, int]] = {}
     
@@ -355,9 +383,8 @@ def get_cluster_count_by_platform() -> Dict[str, Any]:
     for claim in clusterclaims:
         cluster_namespace = claim.get("spec", {}).get("namespace", "")
         if cluster_namespace:
-            deployments = client.get_clusterdeployments(namespace=cluster_namespace)
-            if deployments:
-                deployment = deployments[0]
+            deployment = deployments_by_namespace.get(cluster_namespace)
+            if deployment:
                 cluster_info = extract_cluster_info(claim, deployment)
                 
                 platform = cluster_info.get("platform", "unknown")
@@ -400,10 +427,7 @@ def get_cluster_count_by_platform() -> Dict[str, Any]:
 def get_cluster_count_by_state() -> Dict[str, Any]:
     """Returns structured state statistics."""
     client = get_hive_client()
-    
-    # Get all clusters
-    clusterclaims = client.get_clusterclaims(namespace="rhoai")
-    ibm_clusters = client.get_clusterdeployments(namespace="rhoai")
+    clusterclaims, deployments_by_namespace, ibm_clusters = get_all_cluster_data(client)
     
     state_stats: Dict[str, List[str]] = {}
     
@@ -411,9 +435,8 @@ def get_cluster_count_by_state() -> Dict[str, Any]:
     for claim in clusterclaims:
         cluster_namespace = claim.get("spec", {}).get("namespace", "")
         if cluster_namespace:
-            deployments = client.get_clusterdeployments(namespace=cluster_namespace)
-            if deployments:
-                deployment = deployments[0]
+            deployment = deployments_by_namespace.get(cluster_namespace)
+            if deployment:
                 cluster_info = extract_cluster_info(claim, deployment)
                 
                 state = cluster_info.get("state", "Unknown")
