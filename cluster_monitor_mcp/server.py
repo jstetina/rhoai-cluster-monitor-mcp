@@ -5,7 +5,6 @@ from mcp.server.transport_security import TransportSecuritySettings
 from cluster_monitor_mcp.k8s.client import HiveClusterClient
 from cluster_monitor_mcp import descriptions
 from typing import Optional, List, Dict, Any
-import json
 import os
 
 # Disable DNS rebinding protection for Docker container networking
@@ -216,7 +215,8 @@ def list_all_clusters(
     state_filter: Optional[str] = None,
     region_filter: Optional[str] = None,
     include_details: bool = False
-) -> str:
+) -> Dict[str, Any]:
+    """Returns a structured response with cluster data."""
     client = get_hive_client()
     
     # Get all cluster claims from rhoai namespace
@@ -265,42 +265,25 @@ def list_all_clusters(
         region_filter_lower = region_filter.lower()
         filtered_clusters = [c for c in filtered_clusters if region_filter_lower in c.get("region", "").lower()]
     
-    # Format output
-    if not filtered_clusters:
-        return "No clusters found matching the specified filters."
-    
-    # Build header
-    if include_details:
-        header = f"{'NAME':<30} {'PLATFORM':<10} {'REGION':<15} {'VERSION':<10} {'STATE':<20} {'API URL':<50} {'CONSOLE URL':<50}"
-    else:
-        header = f"{'NAME':<30} {'POOL':<25} {'PLATFORM':<10} {'REGION':<15} {'VERSION':<10} {'STATE':<20}"
-    
-    separator = "=" * len(header)
-    
-    lines = [
-        f"Total clusters found: {len(filtered_clusters)}",
-        separator,
-        header,
-        separator
-    ]
-    
     # Sort by name
     filtered_clusters.sort(key=lambda x: x.get("name", ""))
     
-    for cluster in filtered_clusters:
-        if include_details:
-            line = f"{cluster.get('name', 'N/A'):<30} {cluster.get('platform', 'N/A'):<10} {cluster.get('region', 'N/A'):<15} {cluster.get('version', 'N/A'):<10} {cluster.get('state', 'N/A'):<20} {cluster.get('api_url', 'N/A'):<50} {cluster.get('console_url', 'N/A'):<50}"
-        else:
-            line = f"{cluster.get('name', 'N/A'):<30} {cluster.get('pool', 'N/A'):<25} {cluster.get('platform', 'N/A'):<10} {cluster.get('region', 'N/A'):<15} {cluster.get('version', 'N/A'):<10} {cluster.get('state', 'N/A'):<20}"
-        lines.append(line)
-    
-    lines.append(separator)
-    
-    return "\n".join(lines)
+    if include_details:
+        return {
+            "total": len(filtered_clusters),
+            "clusters": filtered_clusters
+        }
+    else:
+        # Just return list of names
+        return {
+            "total": len(filtered_clusters),
+            "clusters": [c.get("name", "unknown") for c in filtered_clusters]
+        }
 
 
 @mcp.tool(description=descriptions.GET_CLUSTER_DETAILS)
-def get_cluster_details(cluster_name: str) -> str:
+def get_cluster_details(cluster_name: str) -> Dict[str, Any]:
+    """Returns structured cluster details or error."""
     client = get_hive_client()
     
     # Normalize the search name
@@ -326,12 +309,12 @@ def get_cluster_details(cluster_name: str) -> str:
                     cluster_info = extract_cluster_info(claim, deployment)
                     cluster_info["claim"] = claim
                     cluster_info["deployment"] = deployment
-                    return json.dumps(cluster_info, indent=2)
+                    return cluster_info
                 else:
                     # Claim exists but no deployment yet
                     cluster_info = extract_cluster_info(claim, None)
                     cluster_info["claim"] = claim
-                    return json.dumps(cluster_info, indent=2)
+                    return cluster_info
     
     # Check if it's a cluster namespace name (with random suffix)
     for claim in clusterclaims:
@@ -343,7 +326,7 @@ def get_cluster_details(cluster_name: str) -> str:
                 cluster_info = extract_cluster_info(claim, deployment)
                 cluster_info["claim"] = claim
                 cluster_info["deployment"] = deployment
-                return json.dumps(cluster_info, indent=2)
+                return cluster_info
     
     # Try IBM clusters (they don't use pools/claims)
     ibm_clusters = client.get_clusterdeployments(namespace="rhoai")
@@ -352,13 +335,14 @@ def get_cluster_details(cluster_name: str) -> str:
         if ibm_name.lower() == search_name or ibm_name.lower().startswith(f"{search_name}-"):
             cluster_info = extract_ibm_cluster_info(deployment)
             cluster_info["deployment"] = deployment
-            return json.dumps(cluster_info, indent=2)
+            return cluster_info
     
-    return f"Cluster '{cluster_name}' not found. Try using list_all_clusters to see available clusters."
+    return {"error": f"Cluster '{cluster_name}' not found", "hint": "Try using list_all_clusters to see available clusters."}
 
 
 @mcp.tool(description=descriptions.GET_CLUSTER_COUNT_BY_PLATFORM)
-def get_cluster_count_by_platform() -> str:
+def get_cluster_count_by_platform() -> Dict[str, Any]:
+    """Returns structured platform statistics."""
     client = get_hive_client()
     
     # Get all clusters
@@ -401,31 +385,20 @@ def get_cluster_count_by_platform() -> str:
         
         platform_stats[platform][state] += 1
     
-    # Format output
-    lines = [
-        "Platform Statistics",
-        "=" * 50
-    ]
+    # Calculate totals
+    total_clusters = sum(
+        sum(states.values()) for states in platform_stats.values()
+    )
     
-    total_clusters = 0
-    for platform in sorted(platform_stats.keys()):
-        states = platform_stats[platform]
-        platform_total = sum(states.values())
-        total_clusters += platform_total
-        
-        lines.append(f"{platform.upper()}: {platform_total} clusters")
-        for state in sorted(states.keys()):
-            lines.append(f"  - {state}: {states[state]}")
-        lines.append("")
-    
-    lines.append("=" * 50)
-    lines.append(f"Total: {total_clusters} clusters")
-    
-    return "\n".join(lines)
+    return {
+        "total": total_clusters,
+        "by_platform": platform_stats
+    }
 
 
 @mcp.tool(description=descriptions.GET_CLUSTER_COUNT_BY_STATE)
-def get_cluster_count_by_state() -> str:
+def get_cluster_count_by_state() -> Dict[str, Any]:
+    """Returns structured state statistics."""
     client = get_hive_client()
     
     # Get all clusters
@@ -462,40 +435,39 @@ def get_cluster_count_by_state() -> str:
         
         state_stats[state].append(name)
     
-    # Format output
-    lines = [
-        "State Statistics",
-        "=" * 50
-    ]
+    # Sort clusters within each state
+    for state in state_stats:
+        state_stats[state] = sorted(state_stats[state])
     
-    total_clusters = 0
-    for state in sorted(state_stats.keys()):
-        clusters = sorted(state_stats[state])
-        state_total = len(clusters)
-        total_clusters += state_total
-        
-        lines.append(f"{state}: {state_total} clusters")
-        for cluster_name in clusters[:10]:  # Show first 10
-            lines.append(f"  - {cluster_name}")
-        if len(clusters) > 10:
-            lines.append(f"  ... and {len(clusters) - 10} more")
-        lines.append("")
+    # Calculate totals
+    total_clusters = sum(len(clusters) for clusters in state_stats.values())
     
-    lines.append("=" * 50)
-    lines.append(f"Total: {total_clusters} clusters")
-    
-    return "\n".join(lines)
+    return {
+        "total": total_clusters,
+        "by_state": {
+            state: {"count": len(clusters), "clusters": clusters}
+            for state, clusters in state_stats.items()
+        }
+    }
 
 
 @mcp.tool(description=descriptions.TEST_HIVE_CONNECTION)
-def test_hive_connection() -> str:
+def test_hive_connection() -> Dict[str, Any]:
+    """Returns structured connection test result."""
     try:
         client = get_hive_client()
         
         # Try to get cluster version
         clusterclaims = client.get_clusterclaims(namespace="rhoai")
         
-        return f"✓ Successfully connected to Hive cluster\n✓ Found {len(clusterclaims)} cluster claims in rhoai namespace"
+        return {
+            "success": True,
+            "message": "Successfully connected to Hive cluster",
+            "cluster_claims_count": len(clusterclaims)
+        }
     except Exception as e:
-        return f"✗ Failed to connect to Hive cluster: {str(e)}"
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
