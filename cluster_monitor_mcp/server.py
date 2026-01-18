@@ -86,8 +86,13 @@ def extract_cluster_info(clusterclaim: Dict[str, Any], clusterdeployment: Option
     # The cluster namespace is in spec.namespace, not status.namespace
     cluster_namespace = claim_spec.get("namespace", "N/A")
     
+    # Get owner from labels
+    claim_labels = clusterclaim.get("metadata", {}).get("labels", {})
+    owner = claim_labels.get("owner", "")
+    
     info = {
         "name": claim_name,
+        "owner": owner,
         "pool": claim_spec.get("clusterPoolName", "N/A"),
         "namespace": "rhoai",  # Claims are always in rhoai namespace
         "cluster_namespace": cluster_namespace,
@@ -251,6 +256,7 @@ def list_all_clusters(
     name_filter: Optional[str] = None,
     state_filter: Optional[str] = None,
     region_filter: Optional[str] = None,
+    owner_filter: Optional[str] = None,
     include_details: bool = False
 ) -> Dict[str, Any]:
     """Returns a structured response with cluster data."""
@@ -295,6 +301,10 @@ def list_all_clusters(
     if region_filter:
         region_filter_lower = region_filter.lower()
         filtered_clusters = [c for c in filtered_clusters if region_filter_lower in c.get("region", "").lower()]
+    
+    if owner_filter:
+        owner_filter_lower = owner_filter.lower()
+        filtered_clusters = [c for c in filtered_clusters if owner_filter_lower in c.get("owner", "").lower()]
     
     # Sort by name
     filtered_clusters.sort(key=lambda x: x.get("name", ""))

@@ -18,6 +18,7 @@ Args:
                  Case-insensitive partial match supported.
     region_filter: Filter by cloud region (e.g., 'us-east', 'us-west', 'us-south').
                   Case-insensitive partial match supported.
+    owner_filter: Filter by cluster owner/provisioner (partial match, case-insensitive).
     include_details: If True, includes additional details like API URLs, console URLs,
                     infra IDs, and cluster IDs. Default is False for cleaner output.
 
@@ -110,6 +111,27 @@ Example output:
       ...
     ==================
     Total: 76 clusters"""
+
+GET_CLUSTER_OWNERS = """Get a list of all unique cluster owners/provisioners.
+
+This tool returns all unique owners who have provisioned clusters, along with
+the count of clusters each owner has. Useful for identifying who is using
+cluster resources and how many clusters each person has provisioned.
+
+Returns:
+    A structured response with:
+    - total_owners: Number of unique owners
+    - owners: List of owners with their cluster counts, sorted by count descending
+
+Example output:
+    {
+        "total_owners": 45,
+        "owners": [
+            {"name": "Scott_Froberg", "cluster_count": 5},
+            {"name": "Jakub_Stetina", "cluster_count": 3},
+            ...
+        ]
+    }"""
 
 TEST_HIVE_CONNECTION = """Test the connection to the Hive cluster.
 
