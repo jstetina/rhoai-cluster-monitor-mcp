@@ -80,6 +80,8 @@ def extract_cluster_info(clusterclaim: Dict[str, Any], clusterdeployment: Option
         Dictionary with extracted cluster information
     """
     claim_name = clusterclaim.get("metadata", {}).get("name", "unknown")
+    # Strip -claim suffix for cleaner display
+    claim_name = claim_name.removesuffix("-claim")
     claim_spec = clusterclaim.get("spec", {})
     claim_status = clusterclaim.get("status", {})
     
