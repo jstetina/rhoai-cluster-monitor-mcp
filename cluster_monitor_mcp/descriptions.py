@@ -43,7 +43,6 @@ a specific cluster's configuration and current state.
 Args:
     cluster_name: The exact name of the cluster to retrieve details for.
                  This should match the cluster name as shown in list_all_clusters().
-                 Examples: 'afarm-pool-c7v86', 'modelsibm', 'bvt-rhoai-gcp-1-pool-fg8zt'
 
 Returns:
     A formatted JSON string containing the complete cluster information including:
@@ -57,8 +56,8 @@ Returns:
     Returns an error message if the cluster is not found.
 
 Examples:
-    - get_cluster_details('afarm-pool-c7v86'): Get details for a specific cluster
-    - get_cluster_details('modelsibm'): Get details for an IBM cluster"""
+    - get_cluster_details('my-cluster-claim'): Get details for a specific cluster
+    - get_cluster_details('dev-ibm-cluster'): Get details for an IBM cluster"""
 
 GET_CLUSTER_COUNT_BY_PLATFORM = """Get a summary count of clusters grouped by cloud platform.
 
@@ -100,14 +99,14 @@ Example output:
     State Statistics
     ==================
     Running: 65 clusters
-      - afarm-pool-c7v86
-      - bvt-rhoai-gcp-1-pool-fg8zt
+      - prod-aws-cluster-1
+      - dev-gcp-cluster-2
       ...
     Hibernating: 8 clusters
-      - test-cluster-1
+      - staging-cluster-1
       ...
     Resuming: 3 clusters
-      - aws-nana-2-pool-hsnwc
+      - test-cluster-1
       ...
     ==================
     Total: 76 clusters"""
@@ -121,17 +120,7 @@ cluster resources and how many clusters each person has provisioned.
 Returns:
     A structured response with:
     - total_owners: Number of unique owners
-    - owners: List of owners with their cluster counts, sorted by count descending
-
-Example output:
-    {
-        "total_owners": 45,
-        "owners": [
-            {"name": "Scott_Froberg", "cluster_count": 5},
-            {"name": "Jakub_Stetina", "cluster_count": 3},
-            ...
-        ]
-    }"""
+    - owners: List of owners with their cluster counts, sorted by count descending"""
 
 TEST_HIVE_CONNECTION = """Test the connection to the Hive cluster.
 

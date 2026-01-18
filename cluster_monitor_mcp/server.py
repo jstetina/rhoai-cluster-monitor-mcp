@@ -143,11 +143,11 @@ def extract_cluster_info(clusterclaim: Dict[str, Any], clusterdeployment: Option
         console_url = "N/A"
         if api_url != "N/A":
             # Extract cluster domain from API URL
-            # Example: https://api.afarm-pool-c7v86.aws.rh-ods.com:6443
-            # -> https://console-openshift-console.apps.afarm-pool-c7v86.aws.rh-ods.com
+            # Example: https://api.my-cluster.aws.example.com:6443
+            # -> https://console-openshift-console.apps.my-cluster.aws.example.com
             try:
-                api_domain = api_url.split("//")[1].split(":")[0]  # api.afarm-pool-c7v86.aws.rh-ods.com
-                cluster_domain = ".".join(api_domain.split(".")[1:])  # afarm-pool-c7v86.aws.rh-ods.com
+                api_domain = api_url.split("//")[1].split(":")[0]  # api.my-cluster.aws.example.com
+                cluster_domain = ".".join(api_domain.split(".")[1:])  # my-cluster.aws.example.com
                 console_url = f"https://console-openshift-console.apps.{cluster_domain}"
             except Exception:
                 pass
