@@ -318,10 +318,8 @@ def list_all_clusters(
         }
     else:
         # Just return list of names
-        return {
-            "total": len(filtered_clusters),
-            "clusters": [c.get("name", "unknown") for c in filtered_clusters]
-        }
+        return [c.get("name", "unknown") for c in filtered_clusters]
+        
 
 
 @mcp.tool(description=descriptions.GET_CLUSTER_DETAILS)
